@@ -43,3 +43,5 @@ submit/click у Client/app.js
 - `src/SecureLab.Api/appsettings*.json` — режим міграцій і локальний connection string;
 - `infra/compose.yaml` — версія PostgreSQL, порт і локальні навчальні облікові дані;
 - змінна середовища `ConnectionStrings__SecureLab` — безпечний спосіб перевизначити connection string поза репозиторієм.
+
+кнопка summary у Client/index.html → handler у Client/app.js → GET /api/incidents/severity-summary → IncidentEndpoints → IncidentQueries → SecureLabDbContext.Incidents / таблиця incidents → IncidentSeveritySummaryResponse як JSON → textContent у списку підсумку  

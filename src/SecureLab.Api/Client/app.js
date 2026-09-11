@@ -2,6 +2,39 @@ const listElement = document.querySelector("#incident-list");
 const listStatusElement = document.querySelector("#list-status");
 const detailsElement = document.querySelector("#incident-details");
 const filterForm = document.querySelector("#filter-form");
+const btnSummary = document.getElementById("btn-summary");
+const summaryStatus = document.getElementById("summary-status");
+const summaryList = document.getElementById("summary-list");
+
+if (btnSummary) {
+  btnSummary.addEventListener("click", async () => {
+    // Стан завантаження
+    summaryStatus.textContent = "Завантаження...";
+    summaryList.textContent = "";
+
+    try {
+      const response = await apiFetch("/api/incidents/severity-summary");
+      summaryStatus.textContent = ""; // Очищаємо статус
+
+      // Гілка порожнього стану
+      if (response.length === 0) {
+        summaryStatus.textContent = "Даних немає";
+        return;
+      }
+
+      // Успішне створення вузлів
+      response.forEach((summary) => {
+        const item = document.createElement("li");
+        item.textContent = `${summary.severity}: ${summary.count}`;
+        summaryList.append(item);
+      });
+    } catch (error) {
+      // Безпечна помилка
+      summaryStatus.textContent =
+        "Помилка завантаження підсумку. Спробуйте пізніше.";
+    }
+  });
+}
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(path, {
@@ -42,7 +75,11 @@ function renderIncidentList(incidents) {
     button.className = "incident-card";
     button.append(
       createTextElement("strong", incident.title),
-      createTextElement("span", `${incident.severity} · ${incident.status}`, "metadata"),
+      createTextElement(
+        "span",
+        `${incident.severity} · ${incident.status}`,
+        "metadata",
+      ),
     );
     button.addEventListener("click", () => loadIncidentDetails(incident.id));
     item.append(button);
@@ -75,7 +112,13 @@ function renderIncidentDetails(incident) {
   }
 
   detailsElement.className = "";
-  detailsElement.replaceChildren(heading, metadata, description, commentsHeading, comments);
+  detailsElement.replaceChildren(
+    heading,
+    metadata,
+    description,
+    commentsHeading,
+    comments,
+  );
 }
 
 async function loadIncidents() {
@@ -97,7 +140,9 @@ async function loadIncidentDetails(id) {
   detailsElement.textContent = "Завантаження…";
 
   try {
-    renderIncidentDetails(await apiFetch(`/api/incidents/${encodeURIComponent(id)}`));
+    renderIncidentDetails(
+      await apiFetch(`/api/incidents/${encodeURIComponent(id)}`),
+    );
   } catch (error) {
     detailsElement.textContent = `Помилка: ${error.message}`;
   }
