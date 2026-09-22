@@ -61,14 +61,12 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
 
     public async Task<IReadOnlyList<IncidentSeveritySummaryResponse>> GetSeveritySummaryAsync(CancellationToken cancellationToken)
     {
-        // 1. Агрегуємо дані на рівні БД (отримуємо анонімний об'єкт без виклику .ToString)
         var dbResult = await dbContext.Incidents
             .AsNoTracking()
             .GroupBy(incident => incident.Severity)
             .Select(group => new { Severity = group.Key, Count = group.Count() })
             .ToListAsync(cancellationToken);
 
-        // 2. Перетворюємо Enum на рядок і сортуємо вже в пам'яті застосунку
         var summary = dbResult
             .Select(x => new IncidentSeveritySummaryResponse(x.Severity.ToString(), x.Count))
             .OrderByDescending(x => x.Count)
