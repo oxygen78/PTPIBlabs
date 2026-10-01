@@ -17,6 +17,8 @@ Content-Type: application/json
   "occurredAtUtc": "2026-10-01T10:00:00Z"
 }
 
+
+
 ### T-03: Повторне створення з тим самим активним title (очікується 409 Conflict)
 POST {{baseUrl}}/api/incidents
 Content-Type: application/json
@@ -81,3 +83,6 @@ Content-Type: application/json
   "severity": "High",
   "occurredAtUtc": "2026-10-01T10:00:00Z"
 }
+
+### S-01 / S-02: Контрольний read-only сценарій SQLi
+GET {{baseUrl}}/api/incidents/search?q=zz-no-match'%20OR%20TRUE%20--

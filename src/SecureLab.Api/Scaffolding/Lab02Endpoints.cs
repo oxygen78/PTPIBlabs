@@ -8,35 +8,81 @@ namespace SecureLab.Api.Scaffolding;
 // Навчальний старт ЛР 02. Запускати лише з локальними штучними даними.
 public static class Lab02Endpoints
 {
+    // Екранування спецсимволів шаблону ILIKE (\, %, _)
+    private static string EscapeLikePattern(string input)
+    {
+        return input
+            .Replace(@"\", @"\\", StringComparison.Ordinal)
+            .Replace("%", @"\%", StringComparison.Ordinal)
+            .Replace("_", @"\_", StringComparison.Ordinal);
+    }
+
     public static void MapLab02Endpoints(this WebApplication app)
     {
         app.MapGet("/api/incidents/search", async (string? q, string? sortBy, SecureLabDbContext db, CancellationToken ct) =>
         {
-            var order = sortBy switch
+            var normalizedSortBy = string.IsNullOrWhiteSpace(sortBy)
+                ? "createdAtUtc"
+                : sortBy.Trim();
+
+            if (normalizedSortBy is not ("createdAtUtc" or "severity" or "status"))
             {
-                null or "" or "createdAtUtc" => "created_at_utc DESC",
-                "severity" => "severity",
-                "status" => "status",
-                _ => sortBy
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["sortBy"] = ["Допустимі значення sortBy: createdAtUtc, severity, status."]
+                });
+            }
+
+            IQueryable<Incident> query = db.Incidents.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var escaped = EscapeLikePattern(q.Trim());
+                var pattern = $"%{escaped}%";
+
+                query = query.Where(incident =>
+                    EF.Functions.ILike(incident.Title, pattern, @"\") ||
+                    EF.Functions.ILike(incident.Description, pattern, @"\"));
+            }
+            query = normalizedSortBy switch
+            {
+                "severity" => query
+                    .OrderBy(incident =>
+                        incident.Severity == IncidentSeverity.Critical ? 1 :
+                        incident.Severity == IncidentSeverity.High ? 2 :
+                        incident.Severity == IncidentSeverity.Medium ? 3 : 4)
+                    .ThenByDescending(incident => incident.CreatedAtUtc),
+
+                "status" => query
+                    .OrderBy(incident =>
+                        incident.Status == IncidentStatus.New ? 1 :
+                        incident.Status == IncidentStatus.Triaged ? 2 :
+                        incident.Status == IncidentStatus.InProgress ? 3 :
+                        incident.Status == IncidentStatus.Resolved ? 4 : 5)
+                    .ThenByDescending(incident => incident.CreatedAtUtc),
+
+                _ => query.OrderByDescending(incident => incident.CreatedAtUtc)
             };
-            var sql = "SELECT * FROM incidents WHERE title ILIKE '%" + (q ?? "")
-                + "%' OR description ILIKE '%" + (q ?? "") + "%' ORDER BY " + order + " LIMIT 50";
-            var rows = await db.Incidents.FromSqlRaw(sql).AsNoTracking().ToListAsync(ct);
-            return Results.Ok(rows.Select(row => new
-            {
-                row.Id,
-                row.Title,
-                row.Description,
-                Severity = row.Severity.ToString(),
-                Status = row.Status.ToString(),
-                row.CreatedAtUtc
-            }));
+
+            var rows = await query
+                .Take(50)
+                .Select(row => new IncidentSearchResponse(
+                    row.Id,
+                    row.Title,
+                    row.Description,
+                    row.Severity.ToString(),
+                    row.Status.ToString(),
+                    row.CreatedAtUtc))
+                .ToListAsync(ct);
+
+            return Results.Ok(rows);
         });
 
         app.MapPost("/api/incidents", async (CreateIncidentRequest request, SecureLabDbContext db, CancellationToken ct) =>
         {
             var now = DateTimeOffset.UtcNow;
             var errors = new Dictionary<string, string[]>();
+
             var trimmedTitle = request.Title?.Trim() ?? string.Empty;
             var trimmedDescription = request.Description?.Trim() ?? string.Empty;
 
@@ -74,7 +120,7 @@ public static class Lab02Endpoints
             }
             else if (request.OccurredAtUtc.Value > now.AddMinutes(5))
             {
-                errors["occurredAtUtc"] = ["Час виникнення інциденту не може випереджати поточний UTC-час сервера більш ніж на 5 хвилин."];
+                errors["occurredAtUtc"] = ["Час виникнення не може випереджати поточний UTC-час сервера більш ніж на 5 хвилин."];
             }
 
             if (isSeverityValid
@@ -82,7 +128,14 @@ public static class Lab02Endpoints
                 && !errors.ContainsKey("description")
                 && trimmedDescription.Length < 40)
             {
-                errors["description"] = ["Для рівнів High або Critical опис після Trim() має містити щонайменше 40 символів."];
+                errors["description"] = ["Для рівнів High та Critical опис після Trim() має містити щонайменше 40 символів."];
+            }
+
+            if (request.OccurredAtUtc is not null
+                && !errors.ContainsKey("occurredAtUtc")
+                && request.OccurredAtUtc.Value < now.AddDays(-365))
+            {
+                errors["occurredAtUtc"] = ["Дата виникнення інциденту не може бути старішою за 365 днів."];
             }
 
             if (errors.Count > 0)
@@ -148,3 +201,11 @@ public sealed record CreatedIncidentResponse(
     DateTimeOffset OccurredAtUtc,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc);
+
+public sealed record IncidentSearchResponse(
+    Guid Id,
+    string Title,
+    string Description,
+    string Severity,
+    string Status,
+    DateTimeOffset CreatedAtUtc);
