@@ -29,7 +29,6 @@ if (btnSummary) {
         summaryList.append(item);
       });
     } catch (error) {
-      // Безпечна помилка
       summaryStatus.textContent =
         "Помилка завантаження підсумку. Спробуйте пізніше.";
     }
