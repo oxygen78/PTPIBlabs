@@ -1,0 +1,88 @@
+@baseUrl = http://localhost:5080
+
+### Штатний пошук
+GET {{baseUrl}}/api/incidents/search?q=USB
+
+### Позитивний сценарій з апострофом зі стартового пакета
+GET {{baseUrl}}/api/incidents/search?q=комп'ютерного
+
+### T-01: Коректне створення інциденту (очікується 201 Created)
+POST {{baseUrl}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "Аномальна активність облікового запису",
+  "description": "Виявлено підозрілу спробу входу в неробочий час із невідомої підмережі.",
+  "severity": "High",
+  "occurredAtUtc": "2026-10-01T10:00:00Z"
+}
+
+
+
+### T-03: Повторне створення з тим самим активним title (очікується 409 Conflict)
+POST {{baseUrl}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "Аномальна активність облікового запису",
+  "description": "Друге повідомлення з тим самим заголовком у активному стані.",
+  "severity": "Low",
+  "occurredAtUtc": "2026-10-01T10:05:00Z"
+}
+
+### T-02 (CP-01): Перевірка числового рядка severity "7" (очікується 400 Bad Request)
+POST {{baseUrl}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "Тест числового severity",
+  "description": "Перевірка Enum.IsDefined на значенні 7.",
+  "severity": "7",
+  "occurredAtUtc": "2026-10-01T10:00:00Z"
+}
+
+### T-02: Відсутній occurredAtUtc (очікується 400 Bad Request)
+POST {{baseUrl}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "Інцидент без дати",
+  "description": "Перевірка обов'язковості поля occurredAtUtc.",
+  "severity": "Low"
+}
+
+### T-02: Дата більш ніж на 5 хвилин у майбутньому (очікується 400 Bad Request)
+POST {{baseUrl}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "Інцидент із майбутнього",
+  "description": "Дата значно випереджає поточний серверний час UTC.",
+  "severity": "Low",
+  "occurredAtUtc": "2099-01-01T00:00:00Z"
+}
+
+### T-09: Cross-field межа 39 символів для High (очікується 400 Bad Request з ключем description)
+POST {{baseUrl}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "Тест 39 символів",
+  "description": "123456789012345678901234567890123456789",
+  "severity": "High",
+  "occurredAtUtc": "2026-10-01T10:00:00Z"
+}
+
+### T-09: Cross-field межа 40 символів для High (очікується 201 Created)
+POST {{baseUrl}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "Тест 40 символів",
+  "description": "1234567890123456789012345678901234567890",
+  "severity": "High",
+  "occurredAtUtc": "2026-10-01T10:00:00Z"
+}
+
+### S-01 / S-02: Контрольний read-only сценарій SQLi
+GET {{baseUrl}}/api/incidents/search?q=zz-no-match'%20OR%20TRUE%20--
