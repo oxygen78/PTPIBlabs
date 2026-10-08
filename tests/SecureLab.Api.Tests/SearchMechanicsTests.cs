@@ -8,19 +8,18 @@ namespace SecureLab.Api.Tests;
 public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     : IClassFixture<SecureLabApiFactory>
 {
+
     private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
     public async Task Search_ReturnsUsbSeed_AndHandlesApostrophe()
     {
-        // T-04: Нормальний пошук USB
         using var response = await _client.GetAsync("/api/incidents/search?q=USB");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var items = await response.Content.ReadFromJsonAsync<List<IncidentSearchResponse>>();
         Assert.NotNull(items);
         Assert.Single(items);
 
-        // T-04: Позитивна регресія на слово з апострофом "комп'ютерного" (без 500)
         var aposQuery = Uri.EscapeDataString("комп'ютерного");
         using var aposResponse = await _client.GetAsync($"/api/incidents/search?q={aposQuery}");
         Assert.Equal(HttpStatusCode.OK, aposResponse.StatusCode);
@@ -32,7 +31,6 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_ControlledSqliAndWildcards_DoNotExpandResults()
     {
-        // S-02: Контрольний read-only SQLi-ввід після fix повертає порожній список
         var sqliQuery = Uri.EscapeDataString("zz-no-match' OR TRUE --");
         using var sqliResponse = await _client.GetAsync($"/api/incidents/search?q={sqliQuery}");
         Assert.Equal(HttpStatusCode.OK, sqliResponse.StatusCode);
@@ -40,7 +38,6 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
         Assert.NotNull(sqliItems);
         Assert.Empty(sqliItems);
 
-        // Перевірка буквального пошуку метасимволу % (?q=%25)
         using var percentResponse = await _client.GetAsync("/api/incidents/search?q=%25");
         Assert.Equal(HttpStatusCode.OK, percentResponse.StatusCode);
         var percentItems = await percentResponse.Content.ReadFromJsonAsync<List<IncidentSearchResponse>>();
@@ -62,7 +59,8 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Create_ValidAndDuplicateActiveTitle_Returns201Then409()
     {
-        // T-01 та T-03: Генеруємо title один раз за вимогою методики
+        var password = Environment.GetEnvironmentVariable("SeedUsers__Password") ?? throw new InvalidOperationException("Set password.");
+        using var authClient = await factory.LoginAsync("alice", password);
         var title = $"Regression-{Guid.NewGuid():N}";
         var payload = new
         {
@@ -72,10 +70,10 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
             occurredAtUtc = DateTimeOffset.UtcNow
         };
 
-        using var firstResponse = await _client.PostAsJsonAsync("/api/incidents", payload);
+        using var firstResponse = await authClient.PostAsJsonAsync("/api/incidents", payload);
         Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
 
-        using var secondResponse = await _client.PostAsJsonAsync("/api/incidents", payload);
+        using var secondResponse = await authClient.PostAsJsonAsync("/api/incidents", payload);
         Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
         Assert.Equal("application/problem+json", secondResponse.Content.Headers.ContentType?.MediaType);
     }
@@ -83,7 +81,8 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Create_InvalidSeverity7_AndCrossFieldBoundaries_ReturnExpectedStatuses()
     {
-        // T-02: severity "7" -> 400
+        var password = Environment.GetEnvironmentVariable("SeedUsers__Password") ?? throw new InvalidOperationException("Set password.");
+        using var authClient = await factory.LoginAsync("alice", password);
         var invalidSev = new
         {
             title = $"Sev7-{Guid.NewGuid():N}",
@@ -91,10 +90,9 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
             severity = "7",
             occurredAtUtc = DateTimeOffset.UtcNow
         };
-        using var sevRes = await _client.PostAsJsonAsync("/api/incidents", invalidSev);
+        using var sevRes = await authClient.PostAsJsonAsync("/api/incidents", invalidSev);
         Assert.Equal(HttpStatusCode.BadRequest, sevRes.StatusCode);
 
-        // T-09: High severity + 39 символів після Trim() -> 400
         var cross39 = new
         {
             title = $"Cross39-{Guid.NewGuid():N}",
@@ -102,10 +100,9 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
             severity = "High",
             occurredAtUtc = DateTimeOffset.UtcNow
         };
-        using var res39 = await _client.PostAsJsonAsync("/api/incidents", cross39);
+        using var res39 = await authClient.PostAsJsonAsync("/api/incidents", cross39);
         Assert.Equal(HttpStatusCode.BadRequest, res39.StatusCode);
 
-        // T-09: High severity + 40 символів після Trim() -> 201
         var cross40 = new
         {
             title = $"Cross40-{Guid.NewGuid():N}",
@@ -113,14 +110,15 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
             severity = "High",
             occurredAtUtc = DateTimeOffset.UtcNow
         };
-        using var res40 = await _client.PostAsJsonAsync("/api/incidents", cross40);
+        using var res40 = await authClient.PostAsJsonAsync("/api/incidents", cross40);
         Assert.Equal(HttpStatusCode.Created, res40.StatusCode);
     }
 
     [Fact]
     public async Task Create_StaleOccurredAtUtc_Returns400_AndMassAssignmentIsIgnored()
     {
-        // T-10: Інцидент старіший за 365 днів -> 400
+        var password = Environment.GetEnvironmentVariable("SeedUsers__Password") ?? throw new InvalidOperationException("Set password.");
+        using var authClient = await factory.LoginAsync("alice", password);
         var stalePayload = new
         {
             title = $"Stale-{Guid.NewGuid():N}",
@@ -128,7 +126,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
             severity = "Low",
             occurredAtUtc = DateTimeOffset.UtcNow.AddDays(-400)
         };
-        using var staleRes = await _client.PostAsJsonAsync("/api/incidents", stalePayload);
+        using var staleRes = await authClient.PostAsJsonAsync("/api/incidents", stalePayload);
         Assert.Equal(HttpStatusCode.BadRequest, staleRes.StatusCode);
 
         var overpostPayload = new
@@ -140,7 +138,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
             ownerUserId = Guid.NewGuid(),
             status = "Closed"
         };
-        using var overpostRes = await _client.PostAsJsonAsync("/api/incidents", overpostPayload);
+        using var overpostRes = await authClient.PostAsJsonAsync("/api/incidents", overpostPayload);
         Assert.Equal(HttpStatusCode.Created, overpostRes.StatusCode);
         using var doc = JsonDocument.Parse(await overpostRes.Content.ReadAsStringAsync());
         Assert.Equal("New", doc.RootElement.GetProperty("status").GetString());

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <title>Повний сценарій сеансу</title>
+  </head>
+  <body>
+    <h1>Стан cookie-сеансу</h1>
+    <p id="state-msg">Перевірка...</p>
+    <pre id="profile-data"></pre>
+
+    <form id="register-form">
+      <h3>Реєстрація</h3>
+      <input name="userName" placeholder="Логін" required />
+      <input name="email" type="email" placeholder="Email" required />
+      <input name="displayName" placeholder="Ім'я" required />
+      <input name="password" type="password" placeholder="Пароль" required />
+      <button>Зареєструватися</button>
+    </form>
+
+    <form id="login-form">
+      <h3>Вхід</h3>
+      <input name="userName" placeholder="Логін" required />
+      <input name="password" type="password" placeholder="Пароль" required />
+      <button>Увійти</button>
+    </form>
+
+    <form id="incident-form" hidden>
+      <h3>Створити інцидент</h3>
+      <input name="title" placeholder="Заголовок" required />
+      <input name="description" placeholder="Опис" required />
+      <select name="severity">
+        <option>Low</option>
+        <option>High</option>
+      </select>
+      <input name="occurredAtUtc" type="datetime-local" required />
+      <button>Створити</button>
+    </form>
+
+    <button id="logout" hidden>Вийти</button>
+    <p id="result" role="status"></p>
+    <script type="module" src="./auth-lab.js"></script>
+  </body>
+</html>

@@ -86,3 +86,4 @@ Content-Type: application/json
 
 ### S-01 / S-02: Контрольний read-only сценарій SQLi
 GET {{baseUrl}}/api/incidents/search?q=zz-no-match'%20OR%20TRUE%20--
+

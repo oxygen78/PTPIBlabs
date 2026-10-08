@@ -1,0 +1,99 @@
+@host = http://localhost:5080
+@password = YourStrongPassw0rd!
+
+### T-01: Коректна реєстрація (Очікується 201 Created)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "userName": "student99",
+  "email": "student99@example.test",
+  "displayName": "Студент 99",
+  "password": "{{password}}"
+}
+
+### T-02: Дублікат реєсстрації (Очікуєтьсся 409 Conflict)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "userName": "student99",
+  "email": "student99@example.test",
+  "displayName": "Студент 99",
+  "password": "{{password}}"
+}
+
+### T-02: Некоректна реєстрація (Слабкий пароль, очікується 400 Bad Request)
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "userName": "student100",
+  "email": "student100@example.test",
+  "displayName": "Студент 100",
+  "password": "123"
+}
+
+### A-01: Анонімний запит (Ожидается 401 Unauthorized)
+GET {{host}}/api/me
+
+### A-07: Вход — невідомий користувач (Ожидается 401 Unauthorized)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "nobody",
+  "password": "{{password}}"
+}
+
+### A-07: Вхід — невірний пароль (Ожидается 401 Unauthorized, ответ идентичен предыдущему)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "alice",
+  "password": "WrongPassword123!"
+}
+
+### Вхід Аліси
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "alice",
+  "password": "{{{password}}}"
+}
+
+### A-02: Отримання профілю (Ожидается 200 OK и профиль Alice)
+GET {{host}}/api/me
+
+### A-03: Підміна заголовку X-Demo-UserId (Ожидается 200 OK, но профиль остается Alice)
+GET {{host}}/api/me
+X-Demo-UserId: 10000000-0000-0000-0000-000000000002
+
+### ВХОД БОБА (Подготовка для проверки создания инцидентов)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "bob",
+  "password": "{{password}}"
+}
+
+### A-04 и A-05: Створення інциденту з підмінним користувачем  (Ожидается 201 Created)
+POST {{host}}/api/incidents
+Content-Type: application/json
+
+{
+  "title": "Тестовий інцидент від боба",
+  "description": "Довгий тестовий опис для перевірки валідації 1234567890",
+  "severity": "Low",
+  "occurredAtUtc": "2026-10-08T12:00:00Z",
+  "ownerUserId": "10000000-0000-0000-0000-000000000001" 
+}
+
+### A-06: Вихід із системи (Logout) (Ожидается 204 No Content)
+POST {{host}}/api/auth/logout
+
+### Перевірка після виходу (Ожидается 401 Unauthorized)
+GET {{host}}/api/me
