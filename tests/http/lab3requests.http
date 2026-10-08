@@ -61,7 +61,7 @@ Content-Type: application/json
 
 {
   "userName": "alice",
-  "password": "{{{password}}}"
+  "password": "12345678Aa!"
 }
 
 ### A-02: Отримання профілю (Ожидается 200 OK и профиль Alice)

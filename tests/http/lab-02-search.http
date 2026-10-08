@@ -78,8 +78,8 @@ POST {{baseUrl}}/api/incidents
 Content-Type: application/json
 
 {
-  "title": "Тест 40 символів",
-  "description": "1234567890123456789012345678901234567890",
+  "title": "Тест менше 40 символів",
+  "description": "1234567890123456789012345678901235236727234567890",
   "severity": "High",
   "occurredAtUtc": "2026-10-01T10:00:00Z"
 }
