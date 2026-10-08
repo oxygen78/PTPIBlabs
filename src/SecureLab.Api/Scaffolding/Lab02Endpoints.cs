@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
+using System.Security.Claims;
 
 namespace SecureLab.Api.Scaffolding;
 
@@ -78,112 +79,118 @@ public static class Lab02Endpoints
             return Results.Ok(rows);
         });
 
-        app.MapPost("/api/incidents", async (CreateIncidentRequest request, SecureLabDbContext db, CancellationToken ct) =>
-        {
-            var now = DateTimeOffset.UtcNow;
-            var errors = new Dictionary<string, string[]>();
+        app.MapPost("/api/incidents", async (CreateIncidentRequest request, SecureLabDbContext db, HttpContext context, CancellationToken ct) =>
+         {
+             var userIdString = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+             if (!Guid.TryParse(userIdString, out var verifiedUserId))
+             {
+                 return Results.Unauthorized();
+             }
 
-            var trimmedTitle = request.Title?.Trim() ?? string.Empty;
-            var trimmedDescription = request.Description?.Trim() ?? string.Empty;
+             var now = DateTimeOffset.UtcNow;
+             var errors = new Dictionary<string, string[]>();
 
-            if (string.IsNullOrEmpty(trimmedTitle))
-            {
-                errors["title"] = ["Поле title є обов'язковим."];
-            }
-            else if (trimmedTitle.Length > 160)
-            {
-                errors["title"] = ["Максимальна довжина title становить 160 символів."];
-            }
+             var trimmedTitle = request.Title?.Trim() ?? string.Empty;
+             var trimmedDescription = request.Description?.Trim() ?? string.Empty;
 
-            if (string.IsNullOrEmpty(trimmedDescription))
-            {
-                errors["description"] = ["Поле description є обов'язковим."];
-            }
-            else if (trimmedDescription.Length > 4000)
-            {
-                errors["description"] = ["Максимальна довжина description становить 4000 символів."];
-            }
+             if (string.IsNullOrEmpty(trimmedTitle))
+             {
+                 errors["title"] = ["Поле title є обов'язковим."];
+             }
+             else if (trimmedTitle.Length > 160)
+             {
+                 errors["title"] = ["Максимальна довжина title становить 160 символів."];
+             }
 
-            IncidentSeverity severity = default;
-            var isSeverityValid = !string.IsNullOrWhiteSpace(request.Severity)
-                && Enum.TryParse<IncidentSeverity>(request.Severity.Trim(), ignoreCase: true, out severity)
-                && Enum.IsDefined(severity);
+             if (string.IsNullOrEmpty(trimmedDescription))
+             {
+                 errors["description"] = ["Поле description є обов'язковим."];
+             }
+             else if (trimmedDescription.Length > 4000)
+             {
+                 errors["description"] = ["Максимальна довжина description становить 4000 символів."];
+             }
 
-            if (!isSeverityValid)
-            {
-                errors["severity"] = ["Допустимі значення: Low, Medium, High, Critical."];
-            }
+             IncidentSeverity severity = default;
+             var isSeverityValid = !string.IsNullOrWhiteSpace(request.Severity)
+                 && Enum.TryParse<IncidentSeverity>(request.Severity.Trim(), ignoreCase: true, out severity)
+                 && Enum.IsDefined(severity);
 
-            if (request.OccurredAtUtc is null)
-            {
-                errors["occurredAtUtc"] = ["Поле occurredAtUtc є обов'язковим."];
-            }
-            else if (request.OccurredAtUtc.Value > now.AddMinutes(5))
-            {
-                errors["occurredAtUtc"] = ["Час виникнення не може випереджати поточний UTC-час сервера більш ніж на 5 хвилин."];
-            }
+             if (!isSeverityValid)
+             {
+                 errors["severity"] = ["Допустимі значення: Low, Medium, High, Critical."];
+             }
 
-            if (isSeverityValid
-                && (severity is IncidentSeverity.High or IncidentSeverity.Critical)
-                && !errors.ContainsKey("description")
-                && trimmedDescription.Length < 40)
-            {
-                errors["description"] = ["Для рівнів High та Critical опис після Trim() має містити щонайменше 40 символів."];
-            }
+             if (request.OccurredAtUtc is null)
+             {
+                 errors["occurredAtUtc"] = ["Поле occurredAtUtc є обов'язковим."];
+             }
+             else if (request.OccurredAtUtc.Value > now.AddMinutes(5))
+             {
+                 errors["occurredAtUtc"] = ["Час виникнення не може випереджати поточний UTC-час сервера більш ніж на 5 хвилин."];
+             }
 
-            if (request.OccurredAtUtc is not null
-                && !errors.ContainsKey("occurredAtUtc")
-                && request.OccurredAtUtc.Value < now.AddDays(-365))
-            {
-                errors["occurredAtUtc"] = ["Дата виникнення інциденту не може бути старішою за 365 днів."];
-            }
+             if (isSeverityValid
+                 && (severity is IncidentSeverity.High or IncidentSeverity.Critical)
+                 && !errors.ContainsKey("description")
+                 && trimmedDescription.Length < 40)
+             {
+                 errors["description"] = ["Для рівнів High та Critical опис після Trim() має містити щонайменше 40 символів."];
+             }
 
-            if (errors.Count > 0)
-            {
-                return Results.ValidationProblem(errors);
-            }
+             if (request.OccurredAtUtc is not null
+                 && !errors.ContainsKey("occurredAtUtc")
+                 && request.OccurredAtUtc.Value < now.AddDays(-365))
+             {
+                 errors["occurredAtUtc"] = ["Дата виникнення інциденту не може бути старішою за 365 днів."];
+             }
 
-            var hasActiveDuplicate = await db.Incidents
-                .AsNoTracking()
-                .AnyAsync(
-                    i => i.Title == trimmedTitle && i.Status != IncidentStatus.Closed,
-                    ct);
+             if (errors.Count > 0)
+             {
+                 return Results.ValidationProblem(errors);
+             }
 
-            if (hasActiveDuplicate)
-            {
-                return Results.Problem(
-                    title: "Конфлікт створення інциденту",
-                    detail: "Активний інцидент із таким заголовком уже існує.",
-                    statusCode: StatusCodes.Status409Conflict);
-            }
+             var hasActiveDuplicate = await db.Incidents
+                 .AsNoTracking()
+                 .AnyAsync(
+                     i => i.Title == trimmedTitle && i.Status != IncidentStatus.Closed,
+                     ct);
 
-            var incident = new Incident
-            {
-                Id = Guid.NewGuid(),
-                OwnerUserId = DbSeeder.AliceId,
-                Title = trimmedTitle,
-                Description = trimmedDescription,
-                Severity = severity,
-                Status = IncidentStatus.New,
-                OccurredAtUtc = request.OccurredAtUtc!.Value.ToUniversalTime(),
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
-            };
+             if (hasActiveDuplicate)
+             {
+                 return Results.Problem(
+                     title: "Конфлікт створення інциденту",
+                     detail: "Активний інцидент із таким заголовком уже існує.",
+                     statusCode: StatusCodes.Status409Conflict);
+             }
 
-            db.Incidents.Add(incident);
-            await db.SaveChangesAsync(ct);
+             var incident = new Incident
+             {
+                 Id = Guid.NewGuid(),
+                 OwnerUserId = verifiedUserId,
+                 Title = trimmedTitle,
+                 Description = trimmedDescription,
+                 Severity = severity,
+                 Status = IncidentStatus.New,
+                 OccurredAtUtc = request.OccurredAtUtc!.Value.ToUniversalTime(),
+                 CreatedAtUtc = now,
+                 UpdatedAtUtc = now
+             };
 
-            var response = new CreatedIncidentResponse(
-                incident.Id,
-                incident.Title,
-                incident.Severity.ToString(),
-                incident.Status.ToString(),
-                incident.OccurredAtUtc,
-                incident.CreatedAtUtc,
-                incident.UpdatedAtUtc);
+             db.Incidents.Add(incident);
+             await db.SaveChangesAsync(ct);
 
-            return Results.Created($"/api/incidents/{incident.Id}", response);
-        });
+             var response = new CreatedIncidentResponse(
+                 incident.Id,
+                 incident.Title,
+                 incident.Severity.ToString(),
+                 incident.Status.ToString(),
+                 incident.OccurredAtUtc,
+                 incident.CreatedAtUtc,
+                 incident.UpdatedAtUtc);
+
+             return Results.Created($"/api/incidents/{incident.Id}", response);
+         }).RequireAuthorization();
     }
 }
 

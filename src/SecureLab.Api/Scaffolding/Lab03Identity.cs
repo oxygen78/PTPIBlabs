@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
@@ -13,7 +15,10 @@ public static class Lab03Identity
             options.User.RequireUniqueEmail = true;
             options.Password.RequiredLength = 10;
         }).AddEntityFrameworkStores<SecureLabDbContext>().AddDefaultTokenProviders();
+
         builder.Services.AddAuthorization();
+
+        // Cookie профілю
         builder.Services.ConfigureApplicationCookie(options =>
         {
             options.Cookie.HttpOnly = true;
@@ -31,47 +36,95 @@ public static class Lab03Identity
                 return Task.CompletedTask;
             };
         });
+
+        // обмеження частоти запитів (Добрий рівень)
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy("login-limit", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 50,
+                        Window = TimeSpan.FromSeconds(10),
+                        QueueLimit = 0
+                    }));
+        });
     }
 
     public static void MapLab03Identity(this WebApplication app)
     {
+        app.UseRateLimiter();
+
+        // Register (T-01, T-02, Duplicate 409)
         app.MapPost("/api/auth/register", async (RegistrationInput input, UserManager<ApplicationUser> users) =>
         {
-            // ЛР 03: завершіть DTO validation та перевірки довірчої межі.
             if (string.IsNullOrWhiteSpace(input.UserName) || string.IsNullOrWhiteSpace(input.Email)
                 || string.IsNullOrWhiteSpace(input.DisplayName) || string.IsNullOrEmpty(input.Password))
-                return Results.BadRequest();
+                return Results.BadRequest(new { message = "Усі поля є обов'язковими." });
+
             var user = new ApplicationUser
             {
-                Id = Guid.NewGuid(), UserName = input.UserName.Trim(), Email = input.Email.Trim(),
+                Id = Guid.NewGuid(),
+                UserName = input.UserName.Trim(),
+                Email = input.Email.Trim(),
                 DisplayName = input.DisplayName.Trim()
             };
+
             var result = await users.CreateAsync(user, input.Password);
-            if (!result.Succeeded) return Results.BadRequest(new { message = "Registration failed" });
+            if (!result.Succeeded)
+            {
+                var codes = result.Errors.Select(e => e.Code).ToList();
+                if (codes.Contains("DuplicateUserName") || codes.Contains("DuplicateEmail"))
+                    return Results.Conflict(new { message = "Користувач з таким ім'ям або email вже існує." });
+
+                return Results.BadRequest(new { message = "Помилка валідації пароля або даних.", errors = codes });
+            }
+
             var role = await users.AddToRoleAsync(user, DbSeeder.ReporterRole);
             if (!role.Succeeded) throw new InvalidOperationException("Default role assignment failed.");
-            return Results.Created("/api/me", new { user.Id, user.UserName, user.DisplayName });
+
+            return Results.Created("/api/me", new UserDto(user.Id, user.UserName, user.DisplayName));
         });
-        app.MapPost("/api/auth/login", async (LoginInput input, SignInManager<ApplicationUser> signIn) =>
+
+        // Login (A-07, Rate Limit, Audit Events)
+        app.MapPost("/api/auth/login", async (LoginInput input, SignInManager<ApplicationUser> signIn, ILogger<Program> logger, HttpContext context) =>
         {
             if (string.IsNullOrWhiteSpace(input.UserName) || string.IsNullOrEmpty(input.Password))
                 return Results.Unauthorized();
-            var result = await signIn.PasswordSignInAsync(input.UserName, input.Password, false, false);
+
+            var result = await signIn.PasswordSignInAsync(input.UserName, input.Password, isPersistent: false, lockoutOnFailure: false);
+
+            logger.LogInformation("Auth Event: Type={EventType}, User={User}, Result={Result}, Trace={TraceId}",
+                "LoginAttempt", input.UserName, result.Succeeded ? "Success" : "Failed", context.TraceIdentifier);
+
             return result.Succeeded ? Results.NoContent() : Results.Unauthorized();
-        });
-        app.MapPost("/api/auth/logout", () => Results.StatusCode(StatusCodes.Status501NotImplemented));
-        // Навмисно хибна навчальна довіра: ЛР 03 замінює заявлений id на verified principal.
-        app.MapGet("/api/me", async (HttpContext context, SecureLabDbContext db) =>
+        }).RequireRateLimiting("login-limit");
+
+        // Get Profile (A-01, A-02, A-03)
+        app.MapGet("/api/me", (HttpContext context) =>
         {
-            if (!Guid.TryParse(context.Request.Headers["X-Demo-UserId"], out var claimedId))
-                return Results.StatusCode(StatusCodes.Status501NotImplemented);
-            var user = await db.Users.FindAsync(claimedId);
-            return user is null ? Results.NotFound() : Results.Ok(new { user.Id, user.UserName, user.DisplayName });
-        });
-        // Приклад лише mechanics: не повертає identity і не реалізує оцінювану operation.
+            var userIdString = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdString, out var verifiedUserId))
+                return Results.Problem(statusCode: StatusCodes.Status500InternalServerError);
+
+            var userName = context.User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
+
+            return Results.Ok(new UserDto(verifiedUserId, userName, userName));
+        }).RequireAuthorization();
+
         app.MapGet("/api/auth/session-check", () => Results.NoContent()).RequireAuthorization();
+
+        // Logout (A-06)
+        app.MapPost("/api/auth/logout", async (SignInManager<ApplicationUser> signIn) =>
+        {
+            await signIn.SignOutAsync();
+            return Results.NoContent();
+        }).RequireAuthorization();
     }
 }
 
 public sealed record RegistrationInput(string? UserName, string? Email, string? DisplayName, string? Password);
 public sealed record LoginInput(string? UserName, string? Password);
+public sealed record UserDto(Guid Id, string UserName, string DisplayName);
