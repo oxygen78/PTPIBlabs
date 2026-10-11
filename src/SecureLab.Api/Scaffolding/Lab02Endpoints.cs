@@ -135,7 +135,7 @@ public static class Lab02Endpoints
                  && !errors.ContainsKey("description")
                  && trimmedDescription.Length < 40)
              {
-                 errors["description"] = ["Для рівнів High та Critical опис після Trim() має містити щонайменше 40 символів."];
+                 errors["description"] = [$"Для рівнів High та Critical опис після Trim() має містити щонайменше 40 символів. Після Trim(): {trimmedDescription.Length}"];
              }
 
              if (request.OccurredAtUtc is not null
