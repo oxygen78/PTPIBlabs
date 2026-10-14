@@ -61,7 +61,7 @@ Content-Type: application/json
 
 {
   "userName": "alice",
-  "password": "{{{password}}}"
+  "password": "12345678Aa!"
 }
 
 ### A-02: Отримання профілю (Ожидается 200 OK и профиль Alice)
@@ -97,3 +97,17 @@ POST {{host}}/api/auth/logout
 
 ### Перевірка після виходу (Ожидается 401 Unauthorized)
 GET {{host}}/api/me
+
+### S-01 / S-02: Контрольний read-only сценарій SQLi
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "alice",
+  "password": "12345678Aa!"
+}
+
+
+### S-01 / S-02: Контрольний read-only сценарій SQLi
+GET {{host}}/api/me
+Cookie: .AspNetCore.Identity.Application=

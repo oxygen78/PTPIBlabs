@@ -78,10 +78,10 @@ POST {{baseUrl}}/api/incidents
 Content-Type: application/json
 
 {
-  "title": "Тест 40 символів",
-  "description": "1234567890123456789012345678901234567890",
+  "title": "Захист Д-7 Корбут 4",
+  "description": "abcdefghijabcdввjabcdef",
   "severity": "High",
-  "occurredAtUtc": "2026-10-01T10:00:00Z"
+  "occurredAtUtc": "2026-09-01T10:00:00Z"
 }
 
 ### S-01 / S-02: Контрольний read-only сценарій SQLi
