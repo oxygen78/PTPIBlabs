@@ -74,7 +74,7 @@ X-Demo-UserId: 10000000-0000-0000-0000-000000000002
 ### ВХОД БОБА (Подготовка для проверки создания инцидентов)
 POST {{host}}/api/auth/login
 Content-Type: application/json
-
+ 
 {
   "userName": "bob",
   "password": "{{password}}"
@@ -110,4 +110,4 @@ Content-Type: application/json
 
 ### S-01 / S-02: Контрольний read-only сценарій SQLi
 GET {{host}}/api/me
-Cookie: .AspNetCore.Identity.Application=
+Cookie: .AspNetCore.Identity.Application=CfDJ8EsLD5b99yZBhShvko7PSVb3Y__2OyaDthltlvuSeCR9F1cTrXWEQvUrAc9MFp2b2SKvYBlRg2_TWslg5p3BGeo8seym2_srkRc9nIWVgl20Z30BbxgkB3d0c5_4lmZ1iN2669ibC80PLmN--ne7MpBY73iVIpukCWVTr2aLSJFT8YqWdLU6mm0lPJlwMO2hwvihy1AwxxdagsUG7Yx4LukghDxfwTXyjX35sk0p6KbNPzhh30EEVwMQCoZ71zYLjlbfybZe5p_w49F7VbZLZC64Vy4gRNYlf-PLTzq_kdt495QkRL0-WN6NC6j2F4vyUPfuzpSU_ka9PfPh8ykkXRhteDGyfe0DML5by9sULlmV53kobx3eaKnlOoVKzOyqSsGzVzMRp90GkGJGKmO5ZrnpWJkuPWT2du5RSTvZWSWqhgMtn_PMtZsHJ8LA4WyT6NCHnYCMmsU2EVeXLLRiY19pCZL1oIw8kCREipDfsBloE4TBQODxT8I5-0r56qtRO7hoyBVtpGeEn9TcAGrtvmmwXIxR1i9nByTRxD2B-zsUftt_0RH41d5_83_99tEM2BSN3L-cakZ9fWO0TFdlE2XbBmtbwqU0IY63aJiwXOtsc58Wlk19i-oK4g3bGXfgguNGTbQ3QKghzN9R9AEAlUXw8-ZAR6NxeB6l0pi_5wFpRsXFIh3tWNwts1J4ySz8fTU2k8R_cG4FL8CXehTd3zg47EyUSqQ5mhWEeFDKUlvmvAMAJYh-1rGVtAklIhzJPg32tnN6d20pexh2N39d2RmGqqXe9qEEYtzQfwf0FbZmJJJ_uBMMsnpbvidEKCIuVE_77vJjkYDxQGxjmw2ang8
