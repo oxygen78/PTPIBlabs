@@ -1,12 +1,11 @@
-# Матриця доступу — робочий шаблон
+# Матриця контролю доступу (Політика відмов: 404 Not Found)
 
-У початковому стані ЛР 1 автентифікації та авторизації ще немає. Не трактуйте
-цей файл як реалізовану політику. Заповніть і реалізуйте матрицю у ЛР 3–4.
-
-| Дія | Reporter | Analyst | Administrator | Власник ресурсу має значення? | Стан реалізації |
-|---|---:|---:|---:|---:|---|
-| Перегляд списку | TODO | TODO | TODO | TODO | Не реалізовано |
-| Перегляд деталей | TODO | TODO | TODO | Так | Не реалізовано |
-| Створення інциденту | TODO | TODO | TODO | Сервер призначає власника | Не реалізовано |
-| Зміна severity/status | Ні | TODO | TODO | TODO | Не реалізовано |
-| Перегляд internal comment | Ні | Так | TODO | Ні | Не реалізовано |
+| Дія | Анонім | Reporter | Analyst | Administrator | Власник ресурсу має значення? | Стан реалізації |
+|---|---|---|---|---|---|---|
+| Перегляд списку | deny (401) | allow (лише власні) | allow (всі) | deny | Так для Reporter | Реалізовано (query scoping) |
+| Перегляд деталей | deny (401) | allow (owner); deny (404) | allow (для аналізу) | deny | Так | Реалізовано (IAuthorizationHandler) |
+| Створення інциденту | deny (401) | allow (для себе) | allow | deny | Сервер призначає власника | Baseline |
+| Update content | deny (401) | allow (owner); deny (404) | deny (403) | deny | Так | Реалізовано (IAuthorizationHandler) |
+| Delete | deny (401) | allow (owner); deny (404) | deny (403) | deny | Так | Реалізовано (IAuthorizationHandler) |
+| Зміна severity/status (Triage) | deny (401) | deny (403) | allow (лише New -> Triaged) | deny | Ні (залежить від ролі) | Реалізовано (IAuthorizationHandler) |
+| Перегляд internal comment | deny (401) | deny | allow (після авторизації батьківського) | deny | Ні | Реалізовано |

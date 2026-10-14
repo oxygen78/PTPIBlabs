@@ -26,6 +26,8 @@ public static class DbSeeder
     private static readonly Guid AdministratorRoleId =
         Guid.Parse("50000000-0000-0000-0000-000000000003");
 
+    public static readonly Guid InternalCommentId = Guid.Parse("30000000-0000-0000-0000-000000000003");
+
     public static async Task SeedAsync(
         SecureLabDbContext dbContext,
         UserManager<ApplicationUser> userManager,
@@ -115,7 +117,18 @@ public static class DbSeeder
                 Text = "Розпочато перевірку журналу автентифікації.",
                 IsInternal = false,
                 CreatedAtUtc = new DateTimeOffset(2026, 8, 2, 14, 40, 0, TimeSpan.Zero)
-            });
+            },
+            new IncidentComment
+            {
+                Id = Guid.Parse("30000000-0000-0000-0000-000000000003"),
+                Incident = aliceIncident,
+                Author = morgan,
+                Text = "Внутрішнє розслідування: підозра на фішинг. Не розголошувати.",
+                IsInternal = true,
+                CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-5)
+            }
+            );
+
         dbContext.IncidentStatusHistory.Add(
             new IncidentStatusHistory
             {
