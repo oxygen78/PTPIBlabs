@@ -79,7 +79,7 @@ Content-Type: application/json
 
 {
   "title": "Захист Д-7 Корбут 4",
-  "description": "abcdefghijabcdefghij   abcdefghiввjabcdef",
+  "description": "abcdefghijabcdввjabcdef",
   "severity": "High",
   "occurredAtUtc": "2026-09-01T10:00:00Z"
 }

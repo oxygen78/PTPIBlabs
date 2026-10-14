@@ -12,6 +12,7 @@ public sealed class AuthenticationMechanicsTests(SecureLabApiFactory factory) : 
 {
     private static string StudyPassword => Environment.GetEnvironmentVariable("SeedUsers__Password") ?? throw new InvalidOperationException("Set password.");
 
+
     [Fact]
     public async Task A01_AnonymousRequest_Returns401()
     {
