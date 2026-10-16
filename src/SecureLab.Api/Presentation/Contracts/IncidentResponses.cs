@@ -29,3 +29,10 @@ public sealed record IncidentSeveritySummaryResponse(
     string Severity,
     int Count
 );
+
+public sealed record UpdateIncidentRequest(
+    string? Title,
+    string? Description);
+
+public sealed record TriageIncidentRequest(
+    string? Note);

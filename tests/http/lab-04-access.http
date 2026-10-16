@@ -1,0 +1,108 @@
+@host = http://localhost:5080
+@aliceIncident = 20000000-0000-0000-0000-000000000001
+@bobIncident = 20000000-0000-0000-0000-000000000002
+@aliceNewIncident = 20000000-0000-0000-0000-000000000003
+@unknownIncident = 99999999-9999-9999-9999-999999999999
+@comment1 = 30000000-0000-0000-0000-000000000001
+@comment2 = 30000000-0000-0000-0000-000000000002
+@comment3 = 30000000-0000-0000-0000-000000000003
+
+### 0. Анонімний запит до захищеного маршруту (A-01: очікується 401 Unauthorized)
+GET {{host}}/api/incidents/{{aliceIncident}}
+Accept: application/json
+
+### 1. Login Alice (Reporter; cookie збережеться автоматично в REST Client)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "alice", "password": "{{$processEnv SeedUsers__Password}}" }
+
+### 2. Alice: GET list інцидентів (A-05: лише власні 1, 3, 5; без записів Bob 2, 4)
+GET {{host}}/api/incidents
+Accept: application/json
+
+### 3. Alice: GET details власного інциденту (A-02: allow, 200 OK; без comment-3 IsInternal)
+GET {{host}}/api/incidents/{{aliceIncident}}
+Accept: application/json
+
+### 4. Alice: GET details чужого інциденту Bob (A-03: у вразливому стані 200 OK; після fix — 404 Not Found)
+GET {{host}}/api/incidents/{{bobIncident}}
+Accept: application/json
+
+### 5. Alice: GET details неіснуючого інциденту (A-10: 404 Not Found, тіло збігається з п. 4 за винятком traceId)
+GET {{host}}/api/incidents/{{unknownIncident}}
+Accept: application/json
+
+### 6a. Alice: update content чужого інциденту Bob (A-04: очікується deny 404 без зміни стану)
+PUT {{host}}/api/incidents/{{bobIncident}}
+Content-Type: application/json
+
+{
+  "title": "changed by alice",
+  "description": "Спроба несанкціонованої зміни чужого запису."
+}
+
+### 6b. Alice: delete чужого інциденту Bob (A-04: очікується deny 404 без видалення)
+DELETE {{host}}/api/incidents/{{bobIncident}}
+Accept: application/json
+
+### 7. Alice: спроба вертикального підвищення привілеїв — triage (A-06, A-09: очікується 403 Forbidden + audit event)
+POST {{host}}/api/incidents/{{aliceNewIncident}}/triage
+Content-Type: application/json
+
+{
+  "note": "Спроба Reporter виконати triage",
+  "role": "Analyst",
+  "status": "Triaged",
+  "isTransitionAllowed": true
+}
+
+### 8. Alice: regular update власного інциденту з overposting-полями (A-08a: 204, owner/status/role незмінні)
+PUT {{host}}/api/incidents/{{aliceIncident}}
+Content-Type: application/json
+
+{
+  "title": "Підозрілий лист із вкладенням",
+  "description": "Одержано лист нібито від деканату. Вкладення не відкривалося.",
+  "ownerUserId": "10000000-0000-0000-0000-000000000002",
+  "status": "Closed",
+  "role": "Analyst"
+}
+
+### 9a. Alice: GET прямий коментар Morgan до інциденту Bob (A-12: очікується deny 404)
+GET {{host}}/api/incident-comments/{{comment2}}
+Accept: application/json
+
+### 9b. Alice: GET internal comment-3 до власного інциденту (A-12: очікується deny 404)
+GET {{host}}/api/incident-comments/{{comment3}}
+Accept: application/json
+
+### 10. Login Morgan (Analyst)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "morgan", "password": "{{$processEnv SeedUsers__Password}}" }
+
+### 11. Morgan (Analyst): GET details інциденту Alice (A-03R: allow 200 OK для аналізу, бачить comment-3)
+GET {{host}}/api/incidents/{{aliceIncident}}
+Accept: application/json
+
+### 12. Morgan (Analyst): GET internal comment-3 напряму (A-12: allow 200 OK)
+GET {{host}}/api/incident-comments/{{comment3}}
+Accept: application/json
+
+### 13. Morgan (Analyst): спроба звичайного update інциденту Alice (очікується deny 403 Forbidden)
+PUT {{host}}/api/incidents/{{aliceIncident}}
+Content-Type: application/json
+
+{
+  "title": "Analyst cannot edit content"
+}
+
+### 14. Morgan (Analyst): дозволений перехід стану New -> Triaged (A-07: allow 204 NoContent)
+POST {{host}}/api/incidents/{{aliceNewIncident}}/triage
+Content-Type: application/json
+
+{
+  "note": "Підтверджено аналітиком."
+}

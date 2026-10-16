@@ -9,11 +9,25 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
 {
     public async Task<IReadOnlyList<IncidentListItemResponse>> GetListAsync(
         IncidentStatus? status,
+        Guid ownerId,
+        bool isAnalyst,
+        bool isReporter,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Loading incidents with status filter {Status}", status);
 
+        if (!isAnalyst && !isReporter)
+        {
+            return [];
+        }
+
         var query = dbContext.Incidents.AsNoTracking();
+
+        if (!isAnalyst)
+        {
+            query = query.Where(incident => incident.OwnerUserId == ownerId);
+        }
+
         if (status is not null)
         {
             query = query.Where(incident => incident.Status == status);
@@ -31,7 +45,22 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
             .ToListAsync(cancellationToken);
     }
 
-    public Task<IncidentDetailsResponse?> GetDetailsAsync(Guid id, CancellationToken cancellationToken)
+    public Task<Incident?> FindEntityAsync(
+        Guid id,
+        bool asTracking,
+        CancellationToken cancellationToken)
+    {
+        var query = asTracking
+            ? dbContext.Incidents
+            : dbContext.Incidents.AsNoTracking();
+
+        return query.SingleOrDefaultAsync(incident => incident.Id == id, cancellationToken);
+    }
+
+    public Task<IncidentDetailsResponse?> GetDetailsDtoAsync(
+        Guid id,
+        bool includeInternalComments,
+        CancellationToken cancellationToken)
     {
         logger.LogInformation("Loading incident {IncidentId}", id);
 
@@ -48,7 +77,7 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
                 incident.CreatedAtUtc,
                 incident.Owner.DisplayName,
                 incident.Comments
-                    .Where(comment => !comment.IsInternal)
+                    .Where(comment => includeInternalComments || !comment.IsInternal)
                     .OrderBy(comment => comment.CreatedAtUtc)
                     .Select(comment => new IncidentCommentResponse(
                         comment.Id,
@@ -56,6 +85,32 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
                         comment.Text,
                         comment.CreatedAtUtc))
                     .ToList()))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<IncidentCommentResponse?> GetCommentByIdAsync(
+        Guid commentId,
+        Guid userId,
+        bool isAnalyst,
+        bool isReporter,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Loading incident comment {CommentId}", commentId);
+
+        if (!isAnalyst && !isReporter)
+        {
+            return Task.FromResult<IncidentCommentResponse?>(null);
+        }
+
+        return dbContext.IncidentComments
+            .AsNoTracking()
+            .Where(comment => comment.Id == commentId
+                && (isAnalyst || (comment.Incident.OwnerUserId == userId && !comment.IsInternal)))
+            .Select(comment => new IncidentCommentResponse(
+                comment.Id,
+                comment.Author.DisplayName,
+                comment.Text,
+                comment.CreatedAtUtc))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
