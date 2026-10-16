@@ -19,14 +19,16 @@ public static class DbSeeder
     public static readonly Guid BobIncidentId = Guid.Parse("20000000-0000-0000-0000-000000000002");
     public static readonly Guid SafeTextIncidentId = Guid.Parse("20000000-0000-0000-0000-000000000003");
 
+    public static readonly Guid AliceCommentId = Guid.Parse("30000000-0000-0000-0000-000000000001");
+    public static readonly Guid BobCommentId = Guid.Parse("30000000-0000-0000-0000-000000000002");
+    public static readonly Guid InternalCommentId = Guid.Parse("30000000-0000-0000-0000-000000000003");
+
     private static readonly Guid ReporterRoleId =
         Guid.Parse("50000000-0000-0000-0000-000000000001");
     private static readonly Guid AnalystRoleId =
         Guid.Parse("50000000-0000-0000-0000-000000000002");
     private static readonly Guid AdministratorRoleId =
         Guid.Parse("50000000-0000-0000-0000-000000000003");
-
-    public static readonly Guid InternalCommentId = Guid.Parse("30000000-0000-0000-0000-000000000003");
 
     public static async Task SeedAsync(
         SecureLabDbContext dbContext,
@@ -87,7 +89,7 @@ public static class DbSeeder
         };
         var safeTextIncident = new Incident
         {
-            Id = Guid.Parse("20000000-0000-0000-0000-000000000003"),
+            Id = SafeTextIncidentId,
             Owner = alice,
             Title = "Перевірка журналу комп'ютерного класу",
             Description = "Текст <script> має відображатися як текст, а не виконуватися як HTML.",
@@ -102,7 +104,7 @@ public static class DbSeeder
         dbContext.IncidentComments.AddRange(
             new IncidentComment
             {
-                Id = Guid.Parse("30000000-0000-0000-0000-000000000001"),
+                Id = AliceCommentId,
                 Incident = aliceIncident,
                 Author = morgan,
                 Text = "Заголовки листа передано аналітику.",
@@ -111,7 +113,7 @@ public static class DbSeeder
             },
             new IncidentComment
             {
-                Id = Guid.Parse("30000000-0000-0000-0000-000000000002"),
+                Id = BobCommentId,
                 Incident = bobIncident,
                 Author = morgan,
                 Text = "Розпочато перевірку журналу автентифікації.",
@@ -120,14 +122,13 @@ public static class DbSeeder
             },
             new IncidentComment
             {
-                Id = Guid.Parse("30000000-0000-0000-0000-000000000003"),
+                Id = InternalCommentId,
                 Incident = aliceIncident,
                 Author = morgan,
                 Text = "Внутрішнє розслідування: підозра на фішинг. Не розголошувати.",
                 IsInternal = true,
-                CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-5)
-            }
-            );
+                CreatedAtUtc = new DateTimeOffset(2026, 8, 1, 9, 45, 0, TimeSpan.Zero)
+            });
 
         dbContext.IncidentStatusHistory.Add(
             new IncidentStatusHistory

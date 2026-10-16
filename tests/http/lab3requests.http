@@ -77,7 +77,7 @@ Content-Type: application/json
  
 {
   "userName": "bob",
-  "password": "{{password}}"
+  "password": "{psswd}"
 }
 
 ### A-04 и A-05: Створення інциденту з підмінним користувачем  (Ожидается 201 Created)
@@ -104,7 +104,7 @@ Content-Type: application/json
 
 {
   "userName": "alice",
-  "password": "12345678Aa!"
+  "password": "{psswd}"
 }
 
 
