@@ -1,0 +1,49 @@
+@host = http://localhost:5080
+@aliceIncident = 20000000-0000-0000-0000-000000000001
+@bobIncident = 20000000-0000-0000-0000-000000000002
+@comment2 = 30000000-0000-0000-0000-000000000002
+@comment3 = 30000000-0000-0000-0000-000000000003
+
+### 0. Login Alice (cookie збережеться автоматично)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "alice", "password": "{{$processEnv SeedUsers__Password}}" }
+
+### 1. Alice: GET details власного інциденту (allow, 200)
+GET {{host}}/api/incidents/{{aliceIncident}}
+Accept: application/json
+
+### 2. Alice: GET details інциденту Bob (очікується deny 404)
+GET {{host}}/api/incidents/{{bobIncident}}
+Accept: application/json
+
+### 3a. Стан Bob ДО update
+GET {{host}}/api/incidents/{{bobIncident}}
+Accept: application/json
+
+### 3b. Alice: update content інциденту Bob (очікується deny 404)
+# Замініть метод, шлях і поля на ваші з UpdateIncidentRequest
+PUT {{host}}/api/incidents/{{bobIncident}}
+Content-Type: application/json
+
+{ "title": "changed by alice" }
+
+### 3c. Стан Bob ПІСЛЯ update (порівняйте з 3a)
+GET {{host}}/api/incidents/{{bobIncident}}
+Accept: application/json
+
+### 4. Alice: GET коментар Morgan до інциденту Bob (comment-2)
+GET {{host}}/api/incident-comments/{{comment2}}
+Accept: application/json
+
+### 5. Alice: GET internal comment-3 до власного інциденту
+GET {{host}}/api/incident-comments/{{comment3}}
+Accept: application/json
+
+### 6. Alice: DELETE інциденту Bob (робіть ОСТАННІМ, потім reset)
+DELETE {{host}}/api/incidents/{{bobIncident}}
+
+### 7. Перевірка після delete
+GET {{host}}/api/incidents/{{bobIncident}}
+Accept: application/json
