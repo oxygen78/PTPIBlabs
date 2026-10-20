@@ -6,7 +6,8 @@ public sealed record IncidentListItemResponse(
     string Severity,
     string Status,
     DateTimeOffset OccurredAtUtc,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    IReadOnlyList<string> CommentTexts);
 
 public sealed record IncidentDetailsResponse(
     Guid Id,

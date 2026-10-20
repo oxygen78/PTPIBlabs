@@ -41,7 +41,12 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
                 incident.Severity.ToString(),
                 incident.Status.ToString(),
                 incident.OccurredAtUtc,
-                incident.CreatedAtUtc))
+                incident.CreatedAtUtc,
+                incident.Comments
+                    .Where(comment => isAnalyst || !comment.IsInternal)
+                    .OrderBy(comment => comment.CreatedAtUtc)
+                    .Select(comment => comment.Text)
+                    .ToList()))
             .ToListAsync(cancellationToken);
     }
 
