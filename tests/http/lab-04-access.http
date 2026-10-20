@@ -7,6 +7,31 @@
 @comment2 = 30000000-0000-0000-0000-000000000002
 @comment3 = 30000000-0000-0000-0000-000000000003
 
+### Вхід як Alice (Reporter, власниця інциденту I1)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "alice", "password": "{password}" }
+
+### [Д-3 КРОК 2] Alice: GET list інцидентів (перевіряємо commentTexts у I1)
+GET {{host}}/api/incidents
+Accept: application/json
+
+### A-06: Вихід із системи (Logout) (Ожидается 204 No Content)
+POST {{host}}/api/auth/logout
+
+### [Д-3 КРОК 3] Вхід як Morgan (Analyst)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "morgan", "password": "{password}" }
+
+### [Д-3 КРОК 4] Morgan: GET list інцидентів (Analyst бачить і C1, і internal C3)
+GET {{host}}/api/incidents
+Accept: application/json
+
+
+
 ### 0. Анонімний запит до захищеного маршруту (A-01: очікується 401 Unauthorized)
 GET {{host}}/api/incidents/{{aliceIncident}}
 Accept: application/json
