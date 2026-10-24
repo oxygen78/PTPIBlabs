@@ -61,6 +61,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     {
         var password = Environment.GetEnvironmentVariable("SeedUsers__Password") ?? throw new InvalidOperationException("Set password.");
         using var authClient = await factory.LoginAsync("alice", password);
+        await authClient.UseAntiforgeryTokenAsync();
         var title = $"Regression-{Guid.NewGuid():N}";
         var payload = new
         {
@@ -83,6 +84,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     {
         var password = Environment.GetEnvironmentVariable("SeedUsers__Password") ?? throw new InvalidOperationException("Set password.");
         using var authClient = await factory.LoginAsync("alice", password);
+        await authClient.UseAntiforgeryTokenAsync();
         var invalidSev = new
         {
             title = $"Sev7-{Guid.NewGuid():N}",
@@ -119,6 +121,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     {
         var password = Environment.GetEnvironmentVariable("SeedUsers__Password") ?? throw new InvalidOperationException("Set password.");
         using var authClient = await factory.LoginAsync("alice", password);
+        await authClient.UseAntiforgeryTokenAsync();
         var stalePayload = new
         {
             title = $"Stale-{Guid.NewGuid():N}",

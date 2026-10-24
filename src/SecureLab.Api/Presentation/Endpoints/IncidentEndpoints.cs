@@ -7,6 +7,7 @@ using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 using SecureLab.Api.Presentation.Contracts;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using SecureLab.Api.Security;
 
 namespace SecureLab.Api.Presentation.Endpoints;
 
@@ -33,19 +34,22 @@ public static class IncidentEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .AddEndpointFilter<AntiforgeryFilter>();
 
         group.MapDelete("/{id:guid}", DeleteAsync)
             .WithName("DeleteIncident")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .AddEndpointFilter<AntiforgeryFilter>();
 
         group.MapPost("/{id:guid}/triage", TriageAsync)
             .WithName("TriageIncident")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .AddEndpointFilter<AntiforgeryFilter>();
 
         group.MapGet("/severity-summary", async (IncidentQueries queries, CancellationToken cancellationToken) =>
         {
@@ -347,6 +351,20 @@ public static class IncidentEndpoints
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "incident.triage.succeeded subject={SubjectId} action={Action} "
+            + "resource={ResourceId} oldStatus={OldStatus} newStatus={NewStatus} "
+            + "result={Result} occurredAtUtc={OccurredAtUtc:O} traceId={TraceId}",
+            changedByUserId,
+            "incident.triage",
+            incident.Id,
+            oldStatus,
+            IncidentStatus.Triaged,
+            "allowed",
+            now,
+            Activity.Current?.Id ?? httpContext.TraceIdentifier);
+
         return Results.NoContent();
     }
 
