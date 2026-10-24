@@ -1,0 +1,113 @@
+@host = http://localhost:5080
+@password = Password123!
+@aliceIncidentId = 20000000-0000-0000-0000-000000000003
+
+@triageIncidentId = 10000000-0000-0000-0000-000000000002
+
+### 1. Вход под Alice (получаем сессионную cookie)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"userName": "alice", "password": "{{{password}}}"}
+
+### 2. Читаем начальное состояние инцидента Alice (title = "Підозрілий лист із вкладенням")
+GET {{host}}/api/incidents/{{aliceIncidentId}}
+
+### Пытаемся изменить инцидент БЕЗ заголовка X-CSRF-TOKEN -> Получаем 400 Bad Request!
+PUT {{host}}/api/incidents/{{aliceIncidentId}}
+Content-Type: application/json
+
+{
+  "title": "Hacked without CSRF token",
+  "description": "Спроба зміни без токена."
+}
+
+### 4. Проверяем состояние после отказа -> title НЕ изменился!
+GET {{host}}/api/incidents/{{aliceIncidentId}}
+
+### 5. Получаем валидный CSRF-токен той же сессией
+# @name csrf
+GET {{host}}/api/antiforgery/token
+
+### Изменяем инцидент С ВАЛИДНЫМ заголовком X-CSRF-TOKEN -> Получаем 204 No Content!
+PUT {{host}}/api/incidents/{{aliceIncidentId}}
+Content-Type: application/json
+X-CSRF-TOKEN: {{csrf.response.body.$.token}}
+
+{
+  "title": "Підозрілий лист із вкладенням (перевірено з CSRF)",
+  "description": "Оновлений опис власного інциденту з валідним токеном."
+}
+### 0
+GET http://localhost:5080/api/incidents/search?q=test
+Accept: application/problem+json
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 7. Проверяем состояние после успеха -> title изменился!
+GET {{host}}/api/incidents/{{aliceIncidentId}}
+
+### Первые 5 раз будет 200 OK, а на 6-й раз выскочит 429 Too Many Requests!
+GET {{host}}/api/incidents/search?q=USB
+
+### 9. Сразу же (пока у Alice 429) входим под Bob (другой partition)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"userName": "bob", "password": "{{{password}}}"}
+
+### Делаем поиск под Bob -> Получаем 200 OK (Bob не заблокирован!)
+GET {{host}}/api/incidents/search?q=USB
+
+### 1. Вхід під Alice
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"userName": "alice", "password": "{{{password}}}"}
+
+### 2. Отримуємо CSRF-токен для Alice
+# @name aliceCsrf
+GET {{host}}/api/antiforgery/token
+
+### 2.1. Отримуємо список реальних інцидентів Alice, щоб взяти справжній ID першого інциденту:
+# @name aliceList
+GET {{host}}/api/incidents
+
+### 3. Alice (Reporter) намагається зробити triage на реальному інциденті -> 403 Forbidden!
+### (у консолі сервера з'явиться warn: authorization.denied ... action=incident.triage ... result=denied)
+POST {{host}}/api/incidents/{{aliceList.response.body.$[0].id}}/triage
+Content-Type: application/json
+X-CSRF-TOKEN: {{aliceCsrf.response.body.$.token}}
+
+{"note": "Alice tries triage"}
+
+### 4. Вхід під Morgan (Analyst)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"userName": "morgan", "password": "{{{password}}}"}
+
+### 5. Отримуємо свіжий CSRF-токен для Morgan
+# @name morganCsrf
+GET {{host}}/api/antiforgery/token
+
+### 6. Morgan (Analyst) робить triage на тому самому реальному інциденті -> 204 No Content!
+### (у консолі сервера з'явиться info: incident.triage.succeeded ... action=incident.triage ... result=allowed)
+POST {{host}}/api/incidents/{{aliceList.response.body.$[0].id}}/triage
+Content-Type: application/json
+X-CSRF-TOKEN: {{morganCsrf.response.body.$.token}}
+
+{"note": "Triaged by Morgan"}

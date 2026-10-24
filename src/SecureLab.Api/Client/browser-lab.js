@@ -28,12 +28,13 @@ async function load() {
 }
 
 document.querySelector("#load").addEventListener("click", load);
-document
-  .querySelector("#create-form")
-  .addEventListener("submit", async (event) => {
+
+const createForm = document.querySelector("#edit, #create-form");
+if (createForm) {
+  createForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget.elements;
-    const response = await fetch("/api/incidents", {
+    const response = await window.SecureLabCsrf.mutate("/api/incidents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -49,3 +50,4 @@ document
     document.querySelector("#incident-id").value = created.id;
     await load();
   });
+}

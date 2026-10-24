@@ -51,6 +51,9 @@ document.querySelector("#login-form").addEventListener("submit", async (e) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+  if (res.ok) {
+    window.SecureLabCsrf?.reset();
+  }
   result.textContent = `Login: ${res.status}`;
   await refreshSessionState();
 });
@@ -61,7 +64,7 @@ document
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.currentTarget));
     data.occurredAtUtc = new Date(data.occurredAtUtc).toISOString();
-    const res = await apiFetch("/api/incidents", {
+    const res = await window.SecureLabCsrf.mutate("/api/incidents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -70,7 +73,10 @@ document
   });
 
 document.querySelector("#logout").addEventListener("click", async () => {
-  const res = await apiFetch("/api/auth/logout", { method: "POST" });
+  const res = await window.SecureLabCsrf.mutate("/api/auth/logout", {
+    method: "POST",
+  });
+  window.SecureLabCsrf?.reset();
   result.textContent = `Logout: ${res.status}`;
   await refreshSessionState();
 });

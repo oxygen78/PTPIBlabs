@@ -17,6 +17,7 @@ public sealed class IncidentEndpointTests(SecureLabApiFactory factory)
     public async Task GetList_ReturnsOnlyAllowedIncidentsForAlice()
     {
         using var aliceClient = await factory.LoginAsync("alice", StudyPassword);
+        await aliceClient.UseAntiforgeryTokenAsync();
         var incidents = await aliceClient.GetFromJsonAsync<List<IncidentListItemResponse>>(
             "/api/incidents");
 
@@ -30,6 +31,7 @@ public sealed class IncidentEndpointTests(SecureLabApiFactory factory)
     public async Task GetDetails_ForUnknownId_ReturnsProblemDetails404()
     {
         using var aliceClient = await factory.LoginAsync("alice", StudyPassword);
+        await aliceClient.UseAntiforgeryTokenAsync();
         using var response = await aliceClient.GetAsync($"/api/incidents/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -40,6 +42,7 @@ public sealed class IncidentEndpointTests(SecureLabApiFactory factory)
     public async Task GetDetails_DoesNotExposeInternalOwnerFields()
     {
         using var aliceClient = await factory.LoginAsync("alice", StudyPassword);
+        await aliceClient.UseAntiforgeryTokenAsync();
         using var response = await aliceClient.GetAsync(
             $"/api/incidents/{DbSeeder.AliceIncidentId}");
         var json = await response.Content.ReadAsStringAsync();

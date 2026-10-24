@@ -26,6 +26,7 @@ public sealed class AuthenticationMechanicsTests(SecureLabApiFactory factory) : 
     public async Task A02_Login_GetsProfileSuccessfully()
     {
         using var client = await factory.LoginAsync("alice", StudyPassword);
+        await client.UseAntiforgeryTokenAsync();
         using var response = await client.GetAsync("/api/me");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -34,6 +35,7 @@ public sealed class AuthenticationMechanicsTests(SecureLabApiFactory factory) : 
     public async Task A03_SpoofedHeader_DoesNotChangeProfile()
     {
         using var client = await factory.LoginAsync("alice", StudyPassword);
+        await client.UseAntiforgeryTokenAsync();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/me");
         request.Headers.Add("X-Demo-UserId", DbSeeder.BobId.ToString());
         using var response = await client.SendAsync(request);
@@ -45,6 +47,7 @@ public sealed class AuthenticationMechanicsTests(SecureLabApiFactory factory) : 
     public async Task A04_A05_CreateIncident_SetsOwnerToPrincipal_IgnoresPayloadOwner()
     {
         using var bobClient = await factory.LoginAsync("bob", StudyPassword);
+        await bobClient.UseAntiforgeryTokenAsync();
         var payload = new
         {
             title = $"Test {Guid.NewGuid()}",
@@ -69,6 +72,7 @@ public sealed class AuthenticationMechanicsTests(SecureLabApiFactory factory) : 
     public async Task A06_Logout_Returns401OnSubsequentRequests()
     {
         using var client = await factory.LoginAsync("alice", StudyPassword);
+        await client.UseAntiforgeryTokenAsync();
         await client.PostAsync("/api/auth/logout", null);
         using var response = await client.GetAsync("/api/me");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);

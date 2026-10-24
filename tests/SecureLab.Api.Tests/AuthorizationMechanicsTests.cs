@@ -76,6 +76,7 @@ public sealed class AuthorizationMechanicsTests(SecureLabApiFactory factory)
     public async Task A02_Owner_CanReadAndUpdateOwnIncident()
     {
         using var alice = await factory.LoginAsync("alice", StudyPassword);
+        await alice.UseAntiforgeryTokenAsync();
 
         // Read own seeded incident
         using var readRes = await alice.GetAsync($"/api/incidents/{DbSeeder.AliceIncidentId}");
@@ -111,6 +112,7 @@ public sealed class AuthorizationMechanicsTests(SecureLabApiFactory factory)
     public async Task A03_A10_ReadForeignIncident_ReturnsIdentical404ToUnknownId_WithoutDataDisclosure()
     {
         using var alice = await factory.LoginAsync("alice", StudyPassword);
+        await alice.UseAntiforgeryTokenAsync();
 
         using var foreign = await alice.GetAsync($"/api/incidents/{DbSeeder.BobIncidentId}");
         using var unknown = await alice.GetAsync($"/api/incidents/{Guid.NewGuid()}");
@@ -144,6 +146,8 @@ public sealed class AuthorizationMechanicsTests(SecureLabApiFactory factory)
     {
         using var morgan = await factory.LoginAsync("morgan", StudyPassword);
         using var alice = await factory.LoginAsync("alice", StudyPassword);
+        await morgan.UseAntiforgeryTokenAsync();
+        await alice.UseAntiforgeryTokenAsync();
 
         var before = await alice.GetFromJsonAsync<IncidentDetailsResponse>(
             $"/api/incidents/{DbSeeder.AliceIncidentId}");
@@ -177,6 +181,8 @@ public sealed class AuthorizationMechanicsTests(SecureLabApiFactory factory)
     {
         using var alice = await factory.LoginAsync("alice", StudyPassword);
         using var bob = await factory.LoginAsync("bob", StudyPassword);
+        await alice.UseAntiforgeryTokenAsync();
+        await bob.UseAntiforgeryTokenAsync();
 
         var before = await bob.GetFromJsonAsync<IncidentDetailsResponse>(
             $"/api/incidents/{DbSeeder.BobIncidentId}");
@@ -204,6 +210,9 @@ public sealed class AuthorizationMechanicsTests(SecureLabApiFactory factory)
         using var alice = await factory.LoginAsync("alice", StudyPassword);
         using var bob = await factory.LoginAsync("bob", StudyPassword);
         using var morgan = await factory.LoginAsync("morgan", StudyPassword);
+        await alice.UseAntiforgeryTokenAsync();
+        await bob.UseAntiforgeryTokenAsync();
+        await morgan.UseAntiforgeryTokenAsync();
 
         var aliceList = await alice.GetFromJsonAsync<List<IncidentListItemResponse>>("/api/incidents");
         Assert.NotNull(aliceList);
@@ -226,6 +235,7 @@ public sealed class AuthorizationMechanicsTests(SecureLabApiFactory factory)
     public async Task A06_A09_Reporter_TriageAttempt_Returns403WithTraceId_AndDoesNotChangeStatus()
     {
         using var alice = await factory.LoginAsync("alice", StudyPassword);
+        await alice.UseAntiforgeryTokenAsync();
 
         var before = await alice.GetFromJsonAsync<IncidentDetailsResponse>(
             $"/api/incidents/{DbSeeder.SafeTextIncidentId}");
@@ -260,6 +270,8 @@ public sealed class AuthorizationMechanicsTests(SecureLabApiFactory factory)
     {
         using var alice = await factory.LoginAsync("alice", StudyPassword);
         using var morgan = await factory.LoginAsync("morgan", StudyPassword);
+        await alice.UseAntiforgeryTokenAsync();
+        await morgan.UseAntiforgeryTokenAsync();
 
         var fixtureId = await CreateFixtureIncidentAsync(alice, "A07-Triage");
         try
@@ -290,6 +302,7 @@ public sealed class AuthorizationMechanicsTests(SecureLabApiFactory factory)
     public async Task A08a_RegularUpdate_IgnoresForgedOwnerStatusAndRoleFields()
     {
         using var alice = await factory.LoginAsync("alice", StudyPassword);
+        await alice.UseAntiforgeryTokenAsync();
         var fixtureId = await CreateFixtureIncidentAsync(alice, "A08a-Overpost");
         try
         {
@@ -327,6 +340,8 @@ public sealed class AuthorizationMechanicsTests(SecureLabApiFactory factory)
     {
         using var alice = await factory.LoginAsync("alice", StudyPassword);
         using var morgan = await factory.LoginAsync("morgan", StudyPassword);
+        await alice.UseAntiforgeryTokenAsync();
+        await morgan.UseAntiforgeryTokenAsync();
 
         // 1. Alice (Reporter) не може прочитати коментар до чужого інциденту Bob (comment-2)
         using var foreignCommentRes = await alice.GetAsync($"/api/incident-comments/{DbSeeder.BobCommentId}");
