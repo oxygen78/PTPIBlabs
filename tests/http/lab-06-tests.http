@@ -1,5 +1,5 @@
 @host = http://localhost:5080
-@password = Password123!
+@password = psswDada!
 @aliceIncidentId = 20000000-0000-0000-0000-000000000003
 
 @triageIncidentId = 10000000-0000-0000-0000-000000000002
@@ -41,21 +41,6 @@ X-CSRF-TOKEN: {{csrf.response.body.$.token}}
 ### 0
 GET http://localhost:5080/api/incidents/search?q=test
 Accept: application/problem+json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ### 7. Проверяем состояние после успеха -> title изменился!
 GET {{host}}/api/incidents/{{aliceIncidentId}}
@@ -111,3 +96,28 @@ Content-Type: application/json
 X-CSRF-TOKEN: {{morganCsrf.response.body.$.token}}
 
 {"note": "Triaged by Morgan"}
+
+
+
+
+### Вхід під Alice
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"userName": "alice", "password": "{{password}}"}
+
+### Пошук від Alice (натискай Send Request поспіль до отримання 429)
+GET {{host}}/api/incidents/search?q=USB
+
+
+
+### Одразу вхід під Bob (у межах того ж вікна!)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"userName": "bob", "password": "{{password}}"}
+
+###  Пошук від Bob:
+### - При дефектному порядку (UseRateLimiter ДО UseAuthentication) -> дасть 429!
+### - При правильному порядку (UseRateLimiter ПІСЛЯ UseAuthentication) -> дасть 200 OK!
+GET {{host}}/api/incidents/search?q=USB
